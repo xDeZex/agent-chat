@@ -1,0 +1,108 @@
+import argparse
+import json
+import sys
+
+from query import read_events
+
+
+def matches_player_obj(player_obj, *, player=None, team=None):
+    if player is not None and player_obj["name"] != player and player_obj["steamid"] != player:
+        return False
+    if team is not None and player_obj["team"] != team:
+        return False
+    return True
+
+
+def compute_accuracy(events, *, player=None, team=None, round_number=None):
+    hits = sum(
+        1
+        for e in events
+        if e["type"] == "damage"
+        and (round_number is None or e["round"] == round_number)
+        and matches_player_obj(e["attacker"], player=player, team=team)
+    )
+    shots = sum(
+        1
+        for e in events
+        if e["type"] == "shot"
+        and (round_number is None or e["round"] == round_number)
+        and matches_player_obj(e["player"], player=player, team=team)
+    )
+    accuracy = hits / shots if shots else None
+    return {"hits": hits, "shots": shots, "accuracy": accuracy}
+
+
+def compute_kd(events, *, player=None, round_number=None):
+    kills_events = [
+        e for e in events if e["type"] == "kill" and (round_number is None or e["round"] == round_number)
+    ]
+    kills = sum(1 for e in kills_events if matches_player_obj(e["attacker"], player=player))
+    deaths = sum(1 for e in kills_events if matches_player_obj(e["victim"], player=player))
+    kd = kills / deaths if deaths else None
+    return {"kills": kills, "deaths": deaths, "kd": kd}
+
+
+def compute_round_summary(events, round_number):
+    round_rec = next(e for e in events if e["type"] == "round" and e["round"] == round_number)
+    kills = [e for e in events if e["type"] == "kill" and e["round"] == round_number]
+    kills_by_team = {}
+    for k in kills:
+        team = k["attacker"]["team"]
+        if team is not None:
+            kills_by_team[team] = kills_by_team.get(team, 0) + 1
+
+    bomb_events = [e for e in events if e["type"] == "bomb" and e["round"] == round_number]
+    planted = next((e for e in bomb_events if e["event"] == "plant"), None)
+    defused = next((e for e in bomb_events if e["event"] == "defuse"), None)
+
+    return {
+        "round": round_number,
+        "winner": round_rec["winner"],
+        "reason": round_rec["reason"],
+        "bomb_site": round_rec["bomb_site"],
+        "kills_by_team": kills_by_team,
+        "planted_by": planted["player"] if planted else None,
+        "defused_by": defused["player"] if defused else None,
+    }
+
+
+def build_arg_parser():
+    parser = argparse.ArgumentParser(description="Compute derived stats from mission.jsonl.")
+    parser.add_argument("jsonl_path")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    accuracy_parser = subparsers.add_parser("accuracy")
+    accuracy_parser.add_argument("--player")
+    accuracy_parser.add_argument("--team")
+    accuracy_parser.add_argument("--round", type=int)
+
+    kd_parser = subparsers.add_parser("kd")
+    kd_parser.add_argument("--player")
+    kd_parser.add_argument("--round", type=int)
+
+    round_summary_parser = subparsers.add_parser("round-summary")
+    round_summary_parser.add_argument("--round", type=int)
+
+    return parser
+
+
+def main(argv):
+    args = build_arg_parser().parse_args(argv)
+    events = read_events(args.jsonl_path)
+
+    if args.command == "accuracy":
+        result = compute_accuracy(events, player=args.player, team=args.team, round_number=args.round)
+    elif args.command == "kd":
+        result = compute_kd(events, player=args.player, round_number=args.round)
+    elif args.command == "round-summary":
+        if args.round is not None:
+            result = compute_round_summary(events, args.round)
+        else:
+            rounds = [e["round"] for e in events if e["type"] == "round"]
+            result = [compute_round_summary(events, r) for r in rounds]
+
+    json.dump(result, sys.stdout)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
