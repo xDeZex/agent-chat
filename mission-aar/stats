@@ -1,8 +1,15 @@
+#!/usr/bin/env python3
 import argparse
 import json
+import os
 import sys
 
-from query import read_events
+DEFAULT_JSONL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mission.jsonl")
+
+
+def read_events(path):
+    with open(path) as f:
+        return [json.loads(line) for line in f]
 
 
 def matches_player_obj(player_obj, *, player=None, team=None):
@@ -68,7 +75,7 @@ def compute_round_summary(events, round_number):
 
 def build_arg_parser():
     parser = argparse.ArgumentParser(description="Compute derived stats from mission.jsonl.")
-    parser.add_argument("jsonl_path")
+    parser.add_argument("jsonl_path", nargs="?", default=DEFAULT_JSONL_PATH)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     accuracy_parser = subparsers.add_parser("accuracy")

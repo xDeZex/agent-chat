@@ -6,7 +6,7 @@ import pytest
 
 from extract_mission import main
 
-DEMO_PATH = Path(__file__).parent.parent.parent / "raw" / "spirit-vs-faze-mirage.dem"
+DEMO_PATH = Path(__file__).parent.parent.parent / "mission-aar" / "raw" / "spirit-vs-faze-mirage.dem"
 
 pytestmark = pytest.mark.skipif(not DEMO_PATH.exists(), reason="real demo file not present")
 
