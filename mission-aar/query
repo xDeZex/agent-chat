@@ -1,6 +1,10 @@
+#!/usr/bin/env python3
 import argparse
 import json
+import os
 import sys
+
+DEFAULT_JSONL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mission.jsonl")
 
 
 def read_events(path):
@@ -79,7 +83,7 @@ def filter_events(
 
 def build_arg_parser():
     parser = argparse.ArgumentParser(description="Filter mission.jsonl events.")
-    parser.add_argument("jsonl_path")
+    parser.add_argument("jsonl_path", nargs="?", default=DEFAULT_JSONL_PATH)
     parser.add_argument("--type", action="append", default=None)
     parser.add_argument("--player")
     parser.add_argument("--team")

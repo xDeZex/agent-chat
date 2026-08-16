@@ -1,14 +1,18 @@
 from pathlib import Path
 
-from conftest import run_cli
-from stats import compute_accuracy, compute_kd, compute_round_summary
+from conftest import MISSION_AAR_DIR, load_module, run_cli
 
-STATS_PY = Path(__file__).parent.parent / "stats.py"
-MISSION_JSONL = Path(__file__).parent.parent.parent / "mission.jsonl"
+STATS_PATH = MISSION_AAR_DIR / "stats"
+MISSION_JSONL = MISSION_AAR_DIR / "mission.jsonl"
+
+stats = load_module("stats", STATS_PATH)
+compute_accuracy = stats.compute_accuracy
+compute_kd = stats.compute_kd
+compute_round_summary = stats.compute_round_summary
 
 
 def run_stats(*args):
-    return run_cli(STATS_PY, *args)
+    return run_cli(STATS_PATH, *args)
 
 DONK = {"name": "donk", "steamid": "76561198386265483", "team": "Spirit"}
 BROKY = {"name": "broky", "steamid": "76561198201620490", "team": "FaZe"}
@@ -200,3 +204,9 @@ def test_cli_round_summary_without_round_flag_lists_every_round_and_tallies_13_1
     for r in result:
         wins[r["winner"]] += 1
     assert wins == {"Spirit": 13, "FaZe": 11}
+
+
+def test_cli_defaults_to_mission_jsonl_next_to_the_script_when_no_path_given():
+    result = run_cli(STATS_PATH, "accuracy", "--player", "donk")
+
+    assert result["shots"] > 0

@@ -1,14 +1,17 @@
 import json
 from pathlib import Path
 
-from conftest import run_cli
-from query import filter_events, parse_round_range, parse_type_list
+from conftest import MISSION_AAR_DIR, load_module, run_cli
 
-QUERY_PY = Path(__file__).parent.parent / "query.py"
+QUERY_PATH = MISSION_AAR_DIR / "query"
+query = load_module("query", QUERY_PATH)
+filter_events = query.filter_events
+parse_round_range = query.parse_round_range
+parse_type_list = query.parse_type_list
 
 
 def run_query(jsonl_path, *args):
-    return run_cli(QUERY_PY, str(jsonl_path), *args)
+    return run_cli(QUERY_PATH, str(jsonl_path), *args)
 
 
 def test_filter_events_by_single_type():
@@ -191,9 +194,16 @@ def test_cli_outputs_valid_json_array_filtered_by_type_in_file_order(tmp_path):
 
 
 def test_cli_combines_multiple_flags():
-    jsonl_path = Path(__file__).parent.parent.parent / "mission.jsonl"
+    jsonl_path = MISSION_AAR_DIR / "mission.jsonl"
 
     result = run_query(jsonl_path, "--type", "shot", "--player", "donk", "--round", "1")
+
+    assert len(result) > 0
+    assert all(e["type"] == "shot" and e["round"] == 1 and e["player"]["name"] == "donk" for e in result)
+
+
+def test_cli_defaults_to_mission_jsonl_next_to_the_script_when_no_path_given():
+    result = run_cli(QUERY_PATH, "--type", "shot", "--player", "donk", "--round", "1")
 
     assert len(result) > 0
     assert all(e["type"] == "shot" and e["round"] == 1 and e["player"]["name"] == "donk" for e in result)
